@@ -1,0 +1,10 @@
+configuration:
+  mcp_auth_token:
+    name: MCP authentication token
+    description: A random bearer token of at least 32 characters.
+  log_level:
+    name: Log level
+  allow_config_search:
+    name: Enable configuration search
+  allow_storage_metadata:
+    name: Enable storage metadata

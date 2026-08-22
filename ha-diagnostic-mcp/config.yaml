@@ -1,0 +1,28 @@
+name: Home Assistant Diagnostic MCP
+version: 0.1.0
+slug: ha_diagnostic_mcp
+description: Read-only diagnostic MCP server for Home Assistant
+url: https://github.com/example/ha-diagnostics-mcp
+arch:
+  - aarch64
+  - amd64
+startup: application
+homeassistant_api: true
+ports:
+  8765/tcp: 8765
+ports_description:
+  8765/tcp: Diagnostic MCP Streamable HTTP endpoint
+map:
+  - type: homeassistant_config
+    read_only: true
+options:
+  mcp_auth_token: ""
+  log_level: info
+  allow_config_search: true
+  allow_storage_metadata: false
+schema:
+  mcp_auth_token: password
+  log_level: list(debug|info|warning|error)
+  allow_config_search: bool
+  allow_storage_metadata: bool
+watchdog: http://[HOST]:[PORT:8765]/healthz

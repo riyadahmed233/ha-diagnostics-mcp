@@ -1,0 +1,3 @@
+ha-diagnostic-mcp/.venv/
+ha-diagnostic-mcp/.pytest_cache/
+ha-diagnostic-mcp/**/__pycache__/
