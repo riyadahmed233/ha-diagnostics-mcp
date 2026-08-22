@@ -9,6 +9,7 @@ import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import httpx
 import uvicorn
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
@@ -335,15 +336,25 @@ def create_mcp(settings: Settings, api: HomeAssistantAPI, ws: HomeAssistantWebSo
         """Return bounded Core error-log lines through its supported read-only REST endpoint."""
         if not 1 <= lines <= settings.max_log_lines:
             raise SecurityError("lines outside allowed range")
-        return output((await api.error_log()).splitlines()[-lines:])
+        try:
+            return output((await api.error_log()).splitlines()[-lines:])
+        except httpx.HTTPStatusError as err:
+            if err.response.status_code == 404:
+                return output({"available": False, "reason": "Core error-log endpoint is unavailable on this instance"})
+            raise
 
     @mcp.tool()
     async def search_homeassistant_logs(query: str, lines: int = 100) -> dict[str, Any]:
         """Search bounded Core error logs without host or journal access."""
         if not query or len(query) > 100 or not 1 <= lines <= settings.max_log_lines:
             raise SecurityError("Invalid query or lines")
-        result = [line for line in (await api.error_log()).splitlines() if query.casefold() in line.casefold()]
-        return output(result[-lines:])
+        try:
+            result = [line for line in (await api.error_log()).splitlines() if query.casefold() in line.casefold()]
+            return output(result[-lines:])
+        except httpx.HTTPStatusError as err:
+            if err.response.status_code == 404:
+                return output({"available": False, "reason": "Core error-log endpoint is unavailable on this instance"})
+            raise
 
     @mcp.tool()
     async def get_ha_system_info() -> dict[str, Any]:

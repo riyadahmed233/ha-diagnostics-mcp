@@ -65,3 +65,13 @@ def test_secret_yaml_include_is_rejected(tmp_path: Path):
     (tmp_path / "secrets.yaml").write_text("password: no")
     with pytest.raises(SecurityError):
         ConfigFiles(tmp_path).read_yaml("configuration.yaml")
+
+
+def test_safe_include_directory_merge_named_is_resolved(tmp_path: Path):
+    themes = tmp_path / "themes"
+    themes.mkdir()
+    (tmp_path / "configuration.yaml").write_text("frontend:\n  themes: !include_dir_merge_named themes")
+    (themes / "dark.yaml").write_text("dark: {primary-color: black}")
+    assert ConfigFiles(tmp_path).read_yaml("configuration.yaml") == {
+        "frontend": {"themes": {"dark": {"primary-color": "black"}}}
+    }
