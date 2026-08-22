@@ -1,7 +1,7 @@
 FROM python:3.12-alpine
 
 LABEL \
-  io.hass.version="0.1.1" \
+  io.hass.version="0.1.2" \
   io.hass.type="app" \
   io.hass.arch="aarch64|amd64"
 

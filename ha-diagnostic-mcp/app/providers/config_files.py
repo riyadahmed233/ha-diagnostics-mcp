@@ -25,11 +25,11 @@ class ConfigFiles:
     def __init__(self, root: Path) -> None:
         self.root = root
 
-    def read_yaml(self, relative_path: str) -> Any:
+    def read_yaml(self, relative_path: str, tolerate_unapproved_includes: bool = False) -> Any:
         path = safe_config_path(self.root, relative_path)
-        return self._load(path, set())
+        return self._load(path, set(), tolerate_unapproved_includes)
 
-    def _load(self, path: Path, visited: set[Path]) -> Any:
+    def _load(self, path: Path, visited: set[Path], tolerate_unapproved_includes: bool) -> Any:
         """Resolve !include only when it remains a non-secret YAML file under the mount."""
         if path in visited:
             raise SecurityError("Recursive YAML include is not allowed")
@@ -54,35 +54,60 @@ class ConfigFiles:
             return validate_target(path.parent / loader.construct_scalar(node), directory)
 
         def include(loader: IncludeLoader, node: yaml.Node) -> Any:
-            target = include_target(loader, node)
-            return self._load(target, visited)
+            try:
+                target = include_target(loader, node)
+                return self._load(target, visited, tolerate_unapproved_includes)
+            except SecurityError:
+                if tolerate_unapproved_includes:
+                    return "<REDACTED_UNAPPROVED_INCLUDE>"
+                raise
 
         def directory_values(loader: IncludeLoader, node: yaml.Node) -> list[tuple[Path, Any]]:
             directory = include_target(loader, node, directory=True)
             values = []
             for candidate in sorted((*directory.glob("*.yaml"), *directory.glob("*.yml"))):
                 # Resolve every child to prevent a symlink inside an approved directory escaping it.
-                resolved = validate_target(candidate)
-                values.append((resolved, self._load(resolved, visited)))
+                try:
+                    resolved = validate_target(candidate)
+                    values.append((resolved, self._load(resolved, visited, tolerate_unapproved_includes)))
+                except SecurityError:
+                    if not tolerate_unapproved_includes:
+                        raise
             return values
 
-        def include_dir_list(loader: IncludeLoader, node: yaml.Node) -> list[Any]:
-            return [value for _, value in directory_values(loader, node)]
+        def safe_directory_values(loader: IncludeLoader, node: yaml.Node) -> list[tuple[Path, Any]] | str:
+            try:
+                return directory_values(loader, node)
+            except SecurityError:
+                if tolerate_unapproved_includes:
+                    return "<REDACTED_UNAPPROVED_INCLUDE_DIRECTORY>"
+                raise
 
-        def include_dir_named(loader: IncludeLoader, node: yaml.Node) -> dict[str, Any]:
-            return {candidate.stem: value for candidate, value in directory_values(loader, node)}
+        def include_dir_list(loader: IncludeLoader, node: yaml.Node) -> Any:
+            values = safe_directory_values(loader, node)
+            return values if isinstance(values, str) else [value for _, value in values]
 
-        def include_dir_merge_named(loader: IncludeLoader, node: yaml.Node) -> dict[str, Any]:
+        def include_dir_named(loader: IncludeLoader, node: yaml.Node) -> Any:
+            values = safe_directory_values(loader, node)
+            return values if isinstance(values, str) else {candidate.stem: value for candidate, value in values}
+
+        def include_dir_merge_named(loader: IncludeLoader, node: yaml.Node) -> Any:
+            values = safe_directory_values(loader, node)
+            if isinstance(values, str):
+                return values
             merged: dict[str, Any] = {}
-            for _, value in directory_values(loader, node):
+            for _, value in values:
                 if not isinstance(value, dict):
                     raise SecurityError("!include_dir_merge_named files must contain mappings")
                 merged.update(value)
             return merged
 
-        def include_dir_merge_list(loader: IncludeLoader, node: yaml.Node) -> list[Any]:
+        def include_dir_merge_list(loader: IncludeLoader, node: yaml.Node) -> Any:
+            values = safe_directory_values(loader, node)
+            if isinstance(values, str):
+                return values
             merged: list[Any] = []
-            for _, value in directory_values(loader, node):
+            for _, value in values:
                 if not isinstance(value, list):
                     raise SecurityError("!include_dir_merge_list files must contain lists")
                 merged.extend(value)

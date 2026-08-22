@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Return redacted markers for unsafe nested includes instead of failing core configuration inspection.
+
 ## 0.1.1
 
 - Support safe Home Assistant YAML include-directory tags.

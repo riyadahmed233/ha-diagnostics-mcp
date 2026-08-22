@@ -284,7 +284,7 @@ def create_mcp(settings: Settings, api: HomeAssistantAPI, ws: HomeAssistantWebSo
     @mcp.tool()
     async def get_core_configuration() -> dict[str, Any]:
         """Return sanitized configuration.yaml only; secrets and arbitrary includes are never exposed."""
-        return output(files.read_yaml("configuration.yaml"))
+        return output(files.read_yaml("configuration.yaml", tolerate_unapproved_includes=True))
 
     @mcp.tool()
     async def get_automation_yaml(automation_entity_id: str) -> dict[str, Any]:

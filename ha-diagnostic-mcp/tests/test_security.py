@@ -67,6 +67,14 @@ def test_secret_yaml_include_is_rejected(tmp_path: Path):
         ConfigFiles(tmp_path).read_yaml("configuration.yaml")
 
 
+def test_tolerant_core_read_redacts_an_unapproved_include(tmp_path: Path):
+    (tmp_path / "configuration.yaml").write_text("mqtt: !include secrets.yaml")
+    (tmp_path / "secrets.yaml").write_text("password: no")
+    assert ConfigFiles(tmp_path).read_yaml("configuration.yaml", tolerate_unapproved_includes=True) == {
+        "mqtt": "<REDACTED_UNAPPROVED_INCLUDE>"
+    }
+
+
 def test_safe_include_directory_merge_named_is_resolved(tmp_path: Path):
     themes = tmp_path / "themes"
     themes.mkdir()

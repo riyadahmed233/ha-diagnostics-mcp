@@ -1,5 +1,5 @@
 name: Home Assistant Diagnostic MCP
-version: 0.1.1
+version: 0.1.2
 slug: ha_diagnostic_mcp
 description: Read-only diagnostic MCP server for Home Assistant
 url: https://github.com/example/ha-diagnostics-mcp
